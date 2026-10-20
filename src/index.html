@@ -1,0 +1,43 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta
+    http-equiv="Content-Security-Policy"
+    content="default-src 'self'; script-src 'self'; style-src 'self';"
+  />
+  <title>Athena Proctor</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <header>
+    <h1>Athena Proctor</h1>
+    <p>Desktop Exam Monitoring</p>
+  </header>
+
+  <main>
+    <section>
+      <h2>System Status</h2>
+      <p id="status">Checking Electron connection...</p>
+    </section>
+
+    <section>
+      <h2>Camera Preview</h2>
+      <video id="camera" autoplay muted playsinline></video>
+      <p id="camera-status">Camera not started</p>
+      <button id="start-camera">Start Camera</button>
+      <button id="stop-camera" disabled>Stop Camera</button>
+    </section>
+
+    <section>
+      <h2>Suspicion Timeline</h2>
+      <p>Monitoring events will appear here.</p>
+      <ul id="timeline"></ul>
+    </section>
+  </main>
+
+  <script src="./renderer.js"></script>
+</body>
+</html>
