@@ -1,16 +1,14 @@
-
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta
-    http-equiv="Content-Security-Policy"
-    content="default-src 'self'; script-src 'self'; style-src 'self';"
-  />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self';" />
   <title>Athena Proctor</title>
   <link rel="stylesheet" href="./style.css" />
 </head>
+
 <body>
   <header>
     <h1>Athena Proctor</h1>
@@ -32,6 +30,15 @@
     </section>
 
     <section>
+      <h2>Desktop Monitoring</h2>
+      <p id="monitoring-status">Monitoring is stopped</p>
+
+      <button id="start-monitoring">Start Monitoring</button>
+      <button id="stop-monitoring" disabled>Stop Monitoring</button>
+    </section>
+
+
+    <section>
       <h2>Suspicion Timeline</h2>
       <p>Monitoring events will appear here.</p>
       <ul id="timeline"></ul>
@@ -40,4 +47,5 @@
 
   <script src="./renderer.js"></script>
 </body>
+
 </html>
