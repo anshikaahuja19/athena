@@ -52,7 +52,9 @@ function createWindow() {
 
   mainWindow.on("blur", () => {
     if (monitoring) {
-      sendEvent("focus", "Athena Proctor window lost focus");
+      sendEvent("focus", "Athena Proctor window lost focus", {
+        violation: "focus",
+      });
     }
   });
 
@@ -100,7 +102,8 @@ ipcMain.handle("monitoring:sound-activity", () => {
   if (monitoring) {
     sendEvent(
       "audio",
-      "Sound activity detected — review required"
+      "Sound activity detected — review required",
+      { violation: "audio" }
     );
   }
 

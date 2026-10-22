@@ -66,6 +66,38 @@ const stopMonitoringButton =
 const monitoringStatus =
   document.getElementById("monitoring-status");
 
+const warningBanner = document.getElementById("warning-banner");
+const warningMessage = document.getElementById("warning-message");
+const dismissWarningButton = document.getElementById("dismiss-warning");
+
+const warningMessages = {
+  focus: "You left the exam window. Stay on this window until the test is finished.",
+  audio: "Loud sound detected. Keep your surroundings quiet during the test.",
+};
+
+let violationCounts = { focus: 0, audio: 0 };
+
+function showWarning(violation) {
+  violationCounts[violation] += 1;
+
+  warningMessage.textContent =
+    `Warning ${violationCounts[violation]}: ${warningMessages[violation]} ` +
+    "Do not repeat this — it is recorded as a violation.";
+  warningBanner.hidden = false;
+}
+
+function hideWarning() {
+  warningBanner.hidden = true;
+}
+
+dismissWarningButton.addEventListener("click", hideWarning);
+
+window.proctor.onEvent((event) => {
+  if (event.violation in warningMessages) {
+    showWarning(event.violation);
+  }
+});
+
 let monitoringActive = false;
 let microphoneStream = null;
 let audioContext = null;
@@ -132,6 +164,8 @@ function stopMicrophoneMonitoring() {
 startMonitoringButton.addEventListener("click", async () => {
   startMonitoringButton.disabled = true;
   monitoringStatus.textContent = "Starting monitoring...";
+  violationCounts = { focus: 0, audio: 0 };
+  hideWarning();
 
   try {
     await startMicrophoneMonitoring();
@@ -156,6 +190,7 @@ startMonitoringButton.addEventListener("click", async () => {
 stopMonitoringButton.addEventListener("click", async () => {
   monitoringActive = false;
   stopMicrophoneMonitoring();
+  hideWarning();
 
   try {
     await window.proctor.stopMonitoring();

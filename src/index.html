@@ -15,6 +15,11 @@
     <p>Desktop Exam Monitoring</p>
   </header>
 
+  <div id="warning-banner" class="warning-banner" role="alert" hidden>
+    <p id="warning-message"></p>
+    <button id="dismiss-warning">I understand</button>
+  </div>
+
   <main>
     <section>
       <h2>System Status</h2>
@@ -38,11 +43,7 @@
     </section>
 
 
-    <section>
-      <h2>Suspicion Timeline</h2>
-      <p>Monitoring events will appear here.</p>
-      <ul id="timeline"></ul>
-    </section>
+    
   </main>
 
   <script src="./renderer.js"></script>
