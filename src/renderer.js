@@ -8,6 +8,42 @@ let cameraStream = null;
 
 status.textContent = window.proctor.getAppStatus();
 
+const instructionsOverlay = document.getElementById("instructions-overlay");
+const fullscreenOverlay = document.getElementById("fullscreen-overlay");
+const fullscreenError = document.getElementById("fullscreen-error");
+const agreeButton = document.getElementById("agree-instructions");
+const enterFullscreenButton = document.getElementById("enter-fullscreen");
+const endExamButton = document.getElementById("end-exam");
+
+agreeButton.addEventListener("click", () => {
+  instructionsOverlay.hidden = true;
+  fullscreenOverlay.hidden = false;
+});
+
+enterFullscreenButton.addEventListener("click", async () => {
+  enterFullscreenButton.disabled = true;
+  fullscreenError.hidden = true;
+
+  try {
+    const result = await window.proctor.lockExam();
+    if (!result.success) throw new Error("Full screen was not enabled.");
+
+    fullscreenOverlay.hidden = true;
+    endExamButton.hidden = false;
+  } catch (error) {
+    fullscreenError.textContent = `Could not enter full screen: ${error.message}`;
+    fullscreenError.hidden = false;
+    enterFullscreenButton.disabled = false;
+    console.error("Full screen error:", error);
+  }
+});
+
+endExamButton.addEventListener("click", () => {
+  if (confirm("End the exam? You will not be able to return to it.")) {
+    window.proctor.endExam();
+  }
+});
+
 startButton.addEventListener("click", async () => {
   if (cameraStream) return;
 
@@ -104,6 +140,9 @@ let audioContext = null;
 let audioTimer = null;
 let lastSoundEvent = 0;
 
+// Volume (RMS, 0–1) above which sound counts as a violation.
+const SOUND_THRESHOLD = 0.12;
+
 async function startMicrophoneMonitoring() {
   microphoneStream = await navigator.mediaDevices.getUserMedia({
     audio: true,
@@ -139,7 +178,7 @@ async function startMicrophoneMonitoring() {
     const now = Date.now();
 
     // Detect sound activity, not speech or cheating.
-    if (rms > 0.06 && now - lastSoundEvent > 10000) {
+    if (rms > SOUND_THRESHOLD && now - lastSoundEvent > 10000) {
       lastSoundEvent = now;
       window.proctor.reportSoundActivity();
     }

@@ -5,15 +5,38 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self';" />
-  <title>Athena Proctor</title>
+  <title>Exam Proctor</title>
   <link rel="stylesheet" href="./style.css" />
 </head>
 
 <body>
   <header>
-    <h1>Athena Proctor</h1>
-    <p>Desktop Exam Monitoring</p>
+    <h1>Exam Proctor</h1>
+    <button id="end-exam" class="end-exam" hidden>End Exam</button>
   </header>
+
+  <div id="instructions-overlay" class="overlay">
+    <div class="overlay-card" role="dialog" aria-modal="true" aria-labelledby="instructions-title">
+      <h2 id="instructions-title">Exam Instructions</h2>
+      <ul>
+        <li>The exam runs in full screen. You cannot switch to other apps or windows until you end the exam.</li>
+        <li>Stay on the exam window at all times. Leaving it is recorded as a violation.</li>
+        <li>Work in a quiet room. Loud sounds are recorded as violations.</li>
+        <li>Your camera, microphone and screen are monitored during the exam.</li>
+        <li>Repeated violations may be reviewed by your examiner.</li>
+      </ul>
+      <button id="agree-instructions">I Agree</button>
+    </div>
+  </div>
+
+  <div id="fullscreen-overlay" class="overlay" hidden>
+    <div class="overlay-card" role="dialog" aria-modal="true" aria-labelledby="fullscreen-title">
+      <h2 id="fullscreen-title">Switch to Full Screen</h2>
+      <p>The exam must run in full screen. Once you continue, other apps and windows are blocked until you click End Exam.</p>
+      <p id="fullscreen-error" class="overlay-error" hidden></p>
+      <button id="enter-fullscreen">Enter Full Screen</button>
+    </div>
+  </div>
 
   <div id="warning-banner" class="warning-banner" role="alert" hidden>
     <p id="warning-message"></p>

@@ -1,8 +1,30 @@
-const { app, BrowserWindow, ipcMain, desktopCapturer, } = require("electron");
+const { app, BrowserWindow, ipcMain, desktopCapturer, globalShortcut, } = require("electron");
 const path = require("path");
 let mainWindow;
 let monitoring = false;
 let screenshotTimer = null;
+let examLocked = false;
+
+// Kiosk mode on macOS hides the Dock and menu bar and disables
+// Cmd+Tab, Force Quit and hiding the app.
+function lockExam() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+
+  examLocked = true;
+  mainWindow.setKiosk(true);
+  mainWindow.setAlwaysOnTop(true, "screen-saver");
+  mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  mainWindow.focus();
+}
+
+function unlockExam() {
+  examLocked = false;
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+
+  mainWindow.setAlwaysOnTop(false);
+  mainWindow.setVisibleOnAllWorkspaces(false);
+  mainWindow.setKiosk(false);
+}
 
 function sendEvent(type, message, extra = {}) {
   if (!mainWindow || mainWindow.isDestroyed()) return;
@@ -50,6 +72,41 @@ function createWindow() {
 
   mainWindow.loadFile(path.join(__dirname, "src", "index.html"));
 
+  // Never allow the page to open extra windows.
+  mainWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+
+  // While the exam is locked, keep the window open, full screen and visible.
+  mainWindow.on("close", (event) => {
+    if (examLocked) event.preventDefault();
+  });
+
+  mainWindow.on("leave-full-screen", () => {
+    if (examLocked) mainWindow.setKiosk(true);
+  });
+
+  mainWindow.on("minimize", () => {
+    if (examLocked) mainWindow.restore();
+  });
+
+  // Block reload, DevTools, close, minimize and hide shortcuts while locked.
+  // DevTools would let the page call window.close(), which skips "close".
+  mainWindow.webContents.on("before-input-event", (event, input) => {
+    if (!examLocked) return;
+
+    const key = input.key.toLowerCase();
+    const command = input.meta || input.control;
+
+    if (command && ["r", "w", "m", "h", "i", "j"].includes(key)) {
+      event.preventDefault();
+    }
+
+    if (key === "f5" || key === "f12") event.preventDefault();
+  });
+
+  mainWindow.webContents.on("devtools-opened", () => {
+    if (examLocked) mainWindow.webContents.closeDevTools();
+  });
+
   mainWindow.on("blur", () => {
     if (monitoring) {
       sendEvent("focus", "Athena Proctor window lost focus", {
@@ -65,6 +122,8 @@ function createWindow() {
   });
 
   mainWindow.on("closed", () => {
+    // If the window is destroyed anyway, don't leave quitting blocked.
+    examLocked = false;
     monitoring = false;
     clearInterval(screenshotTimer);
     screenshotTimer = null;
@@ -112,7 +171,35 @@ ipcMain.handle("monitoring:sound-activity", () => {
 
 
 
-app.whenReady().then(createWindow);
+ipcMain.handle("exam:lock", () => {
+  lockExam();
+  return { success: examLocked };
+});
+
+ipcMain.handle("exam:end", () => {
+  unlockExam();
+  app.quit();
+  return { success: true };
+});
+
+// Blocks Cmd+Q and the Quit menu item while the exam is locked.
+app.on("before-quit", (event) => {
+  if (examLocked) event.preventDefault();
+});
+
+app.whenReady().then(() => {
+  createWindow();
+
+  // Developer escape hatch so testing never leaves you stuck in kiosk mode.
+  // Only registered when running from source, not in a packaged build.
+  if (!app.isPackaged) {
+    globalShortcut.register("CommandOrControl+Shift+Alt+U", unlockExam);
+  }
+});
+
+app.on("will-quit", () => {
+  globalShortcut.unregisterAll();
+});
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {

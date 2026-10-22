@@ -9,6 +9,12 @@ contextBridge.exposeInMainWorld("proctor", {
   stopMonitoring: () =>
     ipcRenderer.invoke("monitoring:stop"),
 
+  lockExam: () =>
+    ipcRenderer.invoke("exam:lock"),
+
+  endExam: () =>
+    ipcRenderer.invoke("exam:end"),
+
   reportSoundActivity: () =>
     ipcRenderer.invoke("monitoring:sound-activity"),
 
