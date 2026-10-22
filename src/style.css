@@ -1,15 +1,17 @@
 
 :root {
   --white: #ffffff;
-  --page: #fffdf5;
-  --red: #c8102e;
-  --red-dark: #9b0d23;
-  --red-soft: #fde8eb;
-  --yellow: #facc15;
-  --yellow-soft: #fef9c3;
-  --text: #1f1f1f;
-  --muted: #5f5f5f;
-  --border: #f1e3b0;
+  --page: #eef1f6;
+  --accent: #27467d;
+  --accent-dark: #1b325c;
+  --accent-soft: #d3dcec;
+  --danger: #a23b37;
+  --danger-soft: #f3dcdb;
+  --warning: #c99a2e;
+  --warning-soft: #f7ebcc;
+  --text: #1a2230;
+  --muted: #566070;
+  --border: #d4d9e2;
 }
 
 * {
@@ -27,14 +29,17 @@ body {
 header {
   position: relative;
   margin-bottom: 30px;
-  border-bottom: 3px solid var(--yellow);
-  padding-bottom: 20px;
+  padding: 26px 20px;
+  border-radius: 14px;
+  background: linear-gradient(120deg, var(--accent-dark), var(--accent));
+  box-shadow: 0 4px 12px rgba(27, 50, 92, 0.25);
   text-align: center;
 }
 
 header h1 {
   margin: 0;
-  color: var(--red);
+  color: var(--white);
+  letter-spacing: 0.3px;
 }
 
 main {
@@ -47,21 +52,39 @@ section {
   padding: 22px;
   background: var(--white);
   border: 1px solid var(--border);
-  border-top: 4px solid var(--red);
+  border-top: 4px solid var(--accent);
   border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 6px rgba(26, 34, 48, 0.08);
 }
 
 section h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   margin-top: 0;
   font-size: 18px;
-  color: var(--red);
+  color: var(--text);
+}
+
+section h2::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-soft);
 }
 
 #status,
 #camera-status,
 #monitoring-status {
-  color: var(--muted);
+  width: fit-content;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+  font-size: 14px;
+  font-weight: 500;
 }
 
 video {
@@ -79,15 +102,15 @@ button {
   margin: 4px 6px 4px 0;
   border: none;
   border-radius: 6px;
-  background: var(--red);
+  background: var(--accent);
   color: var(--white);
   cursor: pointer;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 button:hover:not(:disabled) {
-  background: var(--red-dark);
+  background: var(--accent-dark);
 }
 
 button:disabled {
@@ -105,12 +128,11 @@ button:disabled {
   gap: 16px;
   margin-bottom: 20px;
   padding: 16px 20px;
-  background: var(--yellow-soft);
-  border: 2px solid var(--yellow);
-  border-left: 6px solid var(--red);
+  background: var(--warning-soft);
+  border: 1px solid var(--warning);
+  border-left: 4px solid var(--warning);
   border-radius: 12px;
   color: var(--text);
-  font-weight: 500;
 }
 
 .warning-banner[hidden] {
@@ -128,16 +150,17 @@ button:disabled {
 
 .end-exam {
   position: absolute;
-  top: 0;
-  right: 0;
+  top: 50%;
+  right: 20px;
+  margin: 0;
+  transform: translateY(-50%);
   background: var(--white);
-  color: var(--red);
-  border: 2px solid var(--red);
+  color: var(--danger);
+  border: 1px solid var(--danger);
 }
 
 .end-exam:hover:not(:disabled) {
-  background: var(--red);
-  color: var(--white);
+  background: var(--danger-soft);
 }
 
 .overlay {
@@ -148,7 +171,7 @@ button:disabled {
   align-items: center;
   justify-content: center;
   padding: 20px;
-  background: rgba(31, 31, 31, 0.75);
+  background: rgba(31, 41, 51, 0.45);
 }
 
 .overlay[hidden],
@@ -161,14 +184,14 @@ button:disabled {
   max-width: 560px;
   padding: 28px;
   background: var(--white);
-  border-top: 6px solid var(--yellow);
+  border: 1px solid var(--border);
   border-radius: 12px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12);
 }
 
 .overlay-card h2 {
   margin-top: 0;
-  color: var(--red);
+  color: var(--text);
 }
 
 .overlay-card ul {
@@ -184,9 +207,9 @@ button:disabled {
 
 .overlay-error {
   padding: 10px 12px;
-  background: var(--red-soft);
+  background: var(--danger-soft);
   border-radius: 6px;
-  color: var(--red-dark) !important;
+  color: var(--danger) !important;
 }
 
 #timeline {
