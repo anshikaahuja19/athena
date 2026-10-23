@@ -4,7 +4,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self';" />
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self'; script-src 'self' 'unsafe-eval'; connect-src 'self' https://storage.googleapis.com;" />
   <title>Exam Proctor</title>
   <link rel="stylesheet" href="./style.css" />
 </head>
@@ -14,6 +15,7 @@
     <h1>Exam Proctor</h1>
     <button id="end-exam" class="end-exam" hidden>End Exam</button>
   </header>
+
 
   <div id="instructions-overlay" class="overlay">
     <div class="overlay-card" role="dialog" aria-modal="true" aria-labelledby="instructions-title">
@@ -49,46 +51,38 @@
     <section>
       <h2>System Health</h2>
 
-      <div class="health-list">
-        <div class="health-row">
-          <span>Electron Application</span>
-          <span id="health-app" class="health-indicator checking">
-            Checking...
-          </span>
-        </div>
 
-        <div class="health-row">
-          <span>Camera</span>
-          <span id="health-camera" class="health-indicator inactive">
-            Not started
-          </span>
-        </div>
 
-        <div class="health-row">
-          <span>Microphone</span>
-          <span id="health-microphone" class="health-indicator inactive">
-            Not started
-          </span>
-        </div>
-
-        <div class="health-row">
-          <span>Desktop Monitoring</span>
-          <span id="health-monitoring" class="health-indicator inactive">
-            Stopped
-          </span>
-        </div>
-
-        <div class="health-row">
-          <span>Screen Capture</span>
-          <span id="health-screenshot" class="health-indicator inactive">
-            Waiting
-          </span>
-        </div>
+      <div class="health-row">
+        <span>Camera</span>
+        <span id="health-camera" class="health-indicator inactive">
+          Not started
+        </span>
       </div>
 
-      <p id="health-last-screenshot">
-        Last successful screenshot: Not yet captured
-      </p>
+      <div class="health-row">
+        <span>Microphone</span>
+        <span id="health-microphone" class="health-indicator inactive">
+          Not started
+        </span>
+      </div>
+
+      <div class="health-row">
+        <span>Desktop Monitoring</span>
+        <span id="health-monitoring" class="health-indicator inactive">
+          Stopped
+        </span>
+      </div>
+
+      <div class="health-row">
+        <span>Screen Capture</span>
+        <span id="health-screenshot" class="health-indicator inactive">
+          Waiting
+        </span>
+      </div>
+      </div>
+
+
 
       <p id="health-summary" role="status">
         Checking system health...
@@ -116,6 +110,9 @@
 
   </main>
 
+
+  <script src="../node_modules/@tensorflow/tfjs/dist/tf.min.js"></script>
+  <script src="../node_modules/@tensorflow-models/coco-ssd/dist/coco-ssd.min.js"></script>
   <script src="./renderer.js"></script>
 </body>
 

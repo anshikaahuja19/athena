@@ -17,6 +17,9 @@ contextBridge.exposeInMainWorld("proctor", {
 
   reportSoundActivity: () =>
     ipcRenderer.invoke("monitoring:sound-activity"),
+  
+  saveWebcamEvidence: (evidence) =>
+  ipcRenderer.invoke("evidence:save-webcam", evidence),
 
   onEvent: (callback) => {
     const listener = (_event, data) => callback(data);

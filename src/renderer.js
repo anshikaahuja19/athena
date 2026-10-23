@@ -1,10 +1,163 @@
-
 const camera = document.getElementById("camera");
 const cameraStatus = document.getElementById("camera-status");
 const startButton = document.getElementById("start-camera");
 const stopButton = document.getElementById("stop-camera");
 
 let cameraStream = null;
+
+let objectDetectionModel = null;
+let detectionActive = false;
+let detectionTimer = null;
+
+let personDetectionCount = 0;
+let objectDetectionCounts = {};
+
+const DETECTION_INTERVAL_MS = 1000;
+const REQUIRED_DETECTIONS = 3;
+const DETECTION_COOLDOWN_MS = 10000;
+
+const lastDetectionTime = {};
+
+const MONITORED_OBJECTS = new Set([
+  "cell phone",
+  "book",
+  "laptop",
+]);
+
+async function loadObjectDetectionModel() {
+  try {
+    cameraStatus.textContent = "Loading object detection model...";
+
+    objectDetectionModel = await cocoSsd.load();
+
+    cameraStatus.textContent = "Camera and object detection ready";
+        if (monitoringActive && cameraStream) {
+      startObjectDetection();
+    }
+  } catch (error) {
+    console.error("Model loading failed:", error);
+    cameraStatus.textContent =
+      "Object detection unavailable. Check the console.";
+  }
+}
+
+function captureWebcamEvidence(reason) {
+  if (!cameraStream || !camera.videoWidth || !camera.videoHeight) {
+    return;
+  }
+
+  const now = Date.now();
+
+  if (
+    lastDetectionTime[reason] &&
+    now - lastDetectionTime[reason] < DETECTION_COOLDOWN_MS
+  ) {
+    return;
+  }
+
+  lastDetectionTime[reason] = now;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = camera.videoWidth;
+  canvas.height = camera.videoHeight;
+
+  const context = canvas.getContext("2d");
+  context.drawImage(camera, 0, 0, canvas.width, canvas.height);
+
+  const imageData = canvas.toDataURL("image/jpeg", 0.85);
+
+  window.proctor.saveWebcamEvidence({
+    reason,
+    imageData,
+  })
+    .then(() => {
+      updateHealth("screenshot", "healthy", "Operational");
+    })
+    .catch((error) => {
+      console.error("Could not save webcam evidence:", error);
+      updateHealth("screenshot", "error", "Capture failed");
+    });
+}
+
+async function detectUnusualActivity() {
+  if (
+    !detectionActive ||
+    !objectDetectionModel ||
+    !cameraStream ||
+    camera.readyState < 2
+  ) {
+    return;
+  }
+
+  try {
+    const predictions = await objectDetectionModel.detect(camera);
+
+    const people = predictions.filter(
+      (prediction) => prediction.class === "person"
+        && prediction.score >= 0.65
+    );
+
+    if (people.length > 1) {
+      personDetectionCount += 1;
+
+      if (personDetectionCount >= REQUIRED_DETECTIONS) {
+        captureWebcamEvidence("multiple-people");
+        personDetectionCount = 0;
+      }
+    } else {
+      personDetectionCount = 0;
+    }
+
+    const detectedObjects = predictions.filter(
+      (prediction) =>
+        MONITORED_OBJECTS.has(prediction.class) &&
+        prediction.score >= 0.65
+    );
+
+    const currentObjects = new Set(
+      detectedObjects.map((prediction) => prediction.class)
+    );
+
+    for (const objectName of MONITORED_OBJECTS) {
+      if (currentObjects.has(objectName)) {
+        objectDetectionCounts[objectName] =
+          (objectDetectionCounts[objectName] || 0) + 1;
+
+        if (
+          objectDetectionCounts[objectName] >= REQUIRED_DETECTIONS
+        ) {
+          captureWebcamEvidence(`object-${objectName.replace(/ /g, "-")}`);
+          objectDetectionCounts[objectName] = 0;
+        }
+      } else {
+        objectDetectionCounts[objectName] = 0;
+      }
+    }
+  } catch (error) {
+    console.error("Object detection failed:", error);
+  }
+}
+
+function startObjectDetection() {
+  if (!objectDetectionModel || detectionActive) return;
+
+  detectionActive = true;
+  detectionTimer = setInterval(
+    detectUnusualActivity,
+    DETECTION_INTERVAL_MS
+  );
+}
+
+function stopObjectDetection() {
+  detectionActive = false;
+  clearInterval(detectionTimer);
+  detectionTimer = null;
+  personDetectionCount = 0;
+  objectDetectionCounts = {};
+}
+loadObjectDetectionModel();
+
+
 
 const instructionsOverlay = document.getElementById("instructions-overlay");
 const fullscreenOverlay = document.getElementById("fullscreen-overlay");
@@ -60,6 +213,9 @@ startButton.addEventListener("click", async () => {
     cameraStatus.textContent = "Camera is active";
     stopButton.disabled = false;
     updateHealth("camera", "healthy", "Active");
+    if (objectDetectionModel && monitoringActive) {
+      startObjectDetection();
+    }
   } catch (error) {
     cameraStream = null;
 
@@ -80,6 +236,7 @@ startButton.addEventListener("click", async () => {
 });
 
 stopButton.addEventListener("click", () => {
+  stopObjectDetection();
   if (cameraStream) {
     cameraStream.getTracks().forEach((track) => track.stop());
     cameraStream = null;
@@ -104,20 +261,16 @@ const monitoringStatus =
   document.getElementById("monitoring-status");
 
 const healthElements = {
-  app: document.getElementById("health-app"),
   camera: document.getElementById("health-camera"),
   microphone: document.getElementById("health-microphone"),
   monitoring: document.getElementById("health-monitoring"),
   screenshot: document.getElementById("health-screenshot"),
 };
 
-const lastScreenshotElement = document.getElementById(
-  "health-last-screenshot"
-);
+
 const healthSummary = document.getElementById("health-summary");
 
 const healthStates = {
-  app: "checking",
   camera: "inactive",
   microphone: "inactive",
   monitoring: "inactive",
@@ -154,19 +307,7 @@ function updateHealthSummary() {
     "System is running. Some components are inactive or awaiting checks.";
 }
 
-// Verify that the renderer can communicate with the Electron preload bridge.
-try {
-  const appStatus = window.proctor.getAppStatus();
 
-  if (appStatus === "Electron is running") {
-    updateHealth("app", "healthy", "Running");
-  } else {
-    updateHealth("app", "error", "Unexpected response");
-  }
-} catch (error) {
-  updateHealth("app", "error", "Unavailable");
-  console.error("Application health check failed:", error);
-}
 
 
 const warningBanner = document.getElementById("warning-banner");
@@ -204,16 +345,8 @@ window.proctor.onEvent((event) => {
 
   // A screenshot event means a screenshot was captured.
   if (event.type === "screenshot") {
-    updateHealth("screenshot", "healthy", "Captured");
+    updateHealth("screenshot", "healthy", "Operational");
 
-    if (lastScreenshotElement) {
-      const time = event.timestamp
-        ? new Date(event.timestamp).toLocaleString()
-        : "Time unavailable";
-
-      lastScreenshotElement.textContent =
-        `Last successful screenshot: ${time}`;
-    }
   }
 
   // Report screenshot capture errors.
@@ -288,7 +421,7 @@ function stopMicrophoneMonitoring() {
   }
 
   if (audioContext) {
-    audioContext.close().catch(() => {});
+    audioContext.close().catch(() => { });
     audioContext = null;
   }
   updateHealth("microphone", "inactive", "Not started");
@@ -321,6 +454,7 @@ startMonitoringButton.addEventListener("click", async () => {
     monitoringStatus.textContent = "Monitoring is active";
     stopMonitoringButton.disabled = false;
     updateHealth("monitoring", "healthy", "Active");
+    startObjectDetection();
   } catch (error) {
     monitoringActive = false;
     stopMicrophoneMonitoring();
@@ -339,6 +473,7 @@ stopMonitoringButton.addEventListener("click", async () => {
   monitoringActive = false;
   stopMicrophoneMonitoring();
   hideWarning();
+  stopObjectDetection();
 
   try {
     await window.proctor.stopMonitoring();

@@ -1,9 +1,71 @@
+const fs = require("fs/promises");
 const { app, BrowserWindow, ipcMain, desktopCapturer, globalShortcut, } = require("electron");
 const path = require("path");
 let mainWindow;
 let monitoring = false;
-let screenshotTimer = null;
 let examLocked = false;
+let lastScreenshotAt = 0;
+const SCREENSHOT_COOLDOWN_MS = 3000;
+ipcMain.handle("evidence:save-webcam", async (event, evidence) => {
+  // Accept evidence only from this app's renderer.
+  if (!mainWindow || event.sender !== mainWindow.webContents) {
+    throw new Error("Unauthorized evidence request");
+  }
+
+  if (!monitoring) {
+    throw new Error("Monitoring is not active");
+  }
+
+  if (
+    !evidence ||
+    typeof evidence.reason !== "string" ||
+    typeof evidence.imageData !== "string" ||
+    !evidence.imageData.startsWith("data:image/jpeg;base64,")
+  ) {
+    throw new Error("Invalid webcam evidence");
+  }
+
+  const base64Image = evidence.imageData.slice(
+    "data:image/jpeg;base64,".length
+  );
+
+  // Reject unusually large images.
+  if (base64Image.length > 10 * 1024 * 1024) {
+    throw new Error("Webcam image is too large");
+  }
+
+  const imageBuffer = Buffer.from(base64Image, "base64");
+
+  if (imageBuffer.length === 0) {
+    throw new Error("Webcam image is empty");
+  }
+
+  const timestamp = new Date().toISOString();
+  const safeTimestamp = timestamp.replace(/[:.]/g, "-");
+  const safeReason = evidence.reason.replace(/[^a-z0-9-]/gi, "-");
+
+  const evidenceDir = path.join(
+    app.getPath("documents"),
+    "Athena Proctor Evidence"
+  );
+
+  await fs.mkdir(evidenceDir, {
+    recursive: true,
+    mode: 0o700,
+  });
+
+  const fileName = `webcam-${safeTimestamp}-${safeReason}.jpg`;
+  const filePath = path.join(evidenceDir, fileName);
+
+  await fs.writeFile(filePath, imageBuffer, {
+    mode: 0o600,
+    flag: "wx",
+  });
+
+
+
+  return { success: true };
+});
 
 // Kiosk mode on macOS hides the Dock and menu bar and disables
 // Cmd+Tab, Force Quit and hiding the app.
@@ -37,8 +99,19 @@ function sendEvent(type, message, extra = {}) {
   });
 }
 
-async function captureScreenshot() {
+
+
+async function captureScreenshot(reason) {
   if (!monitoring) return;
+
+  const now = Date.now();
+
+  // Prevent duplicate screenshots within 3 seconds.
+  if (now - lastScreenshotAt < SCREENSHOT_COOLDOWN_MS) {
+    return;
+  }
+
+  lastScreenshotAt = now;
 
   try {
     const sources = await desktopCapturer.getSources({
@@ -48,14 +121,43 @@ async function captureScreenshot() {
 
     if (!monitoring || sources.length === 0) return;
 
-    sendEvent("screenshot", "Screen snapshot captured", {
-      image: sources[0].thumbnail.toDataURL(),
+    const timestamp = new Date().toISOString();
+    const safeTimestamp = timestamp.replace(/[:.]/g, "-");
+
+    const evidenceDir = path.join(
+      app.getPath("documents"),
+      "Athena Proctor Evidence"
+    );
+
+    await fs.mkdir(evidenceDir, {
+      recursive: true,
+      mode: 0o700,
     });
+
+    const safeReason = reason.replace(/[^a-z0-9-]/gi, "-");
+
+    const fileName =
+      `screenshot-${safeTimestamp}-${safeReason}.png`;
+
+    const filePath = path.join(evidenceDir, fileName);
+
+    const imageBuffer = sources[0].thumbnail.toPNG();
+
+    await fs.writeFile(filePath, imageBuffer, {
+      mode: 0o600,
+    });
+
+    // Send only a general status event to the UI.
+    sendEvent("screenshot", "Screen snapshot saved");
+
+
   } catch (error) {
     console.error("Screen capture failed:", error.message);
-    sendEvent("error", "Screen capture failed");
+    sendEvent("error", `Screen capture failed: ${error.message}`);
   }
 }
+
+
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -109,9 +211,13 @@ function createWindow() {
 
   mainWindow.on("blur", () => {
     if (monitoring) {
-      sendEvent("focus", "Athena Proctor window lost focus", {
-        violation: "focus",
-      });
+      sendEvent(
+        "focus",
+        "Athena Proctor window lost focus",
+        { violation: "focus" }
+      );
+
+      captureScreenshot("focus-loss");
     }
   });
 
@@ -125,8 +231,7 @@ function createWindow() {
     // If the window is destroyed anyway, don't leave quitting blocked.
     examLocked = false;
     monitoring = false;
-    clearInterval(screenshotTimer);
-    screenshotTimer = null;
+
     mainWindow = null;
   });
 }
@@ -136,21 +241,16 @@ ipcMain.handle("monitoring:start", async () => {
   if (monitoring) return { success: true };
 
   monitoring = true;
+  lastScreenshotAt = 0;
+
   sendEvent("session", "Monitoring session started");
-
-  await captureScreenshot();
-
-  if (monitoring) {
-    screenshotTimer = setInterval(captureScreenshot, 15000);
-  }
 
   return { success: true };
 });
 
 ipcMain.handle("monitoring:stop", () => {
   monitoring = false;
-  clearInterval(screenshotTimer);
-  screenshotTimer = null;
+
 
   sendEvent("session", "Monitoring session stopped");
 
@@ -164,6 +264,7 @@ ipcMain.handle("monitoring:sound-activity", () => {
       "Sound activity detected — review required",
       { violation: "audio" }
     );
+    captureScreenshot("loud-sound");
   }
 
   return { success: true };
