@@ -41,9 +41,10 @@ async function loadObjectDetectionModel() {
   }
 }
 
+// Returns true when evidence was captured, false when it was skipped.
 function captureWebcamEvidence(reason) {
   if (!cameraStream || !camera.videoWidth || !camera.videoHeight) {
-    return;
+    return false;
   }
 
   const now = Date.now();
@@ -52,7 +53,7 @@ function captureWebcamEvidence(reason) {
     lastDetectionTime[reason] &&
     now - lastDetectionTime[reason] < DETECTION_COOLDOWN_MS
   ) {
-    return;
+    return false;
   }
 
   lastDetectionTime[reason] = now;
@@ -77,6 +78,8 @@ function captureWebcamEvidence(reason) {
       console.error("Could not save webcam evidence:", error);
       updateHealth("screenshot", "error", "Capture failed");
     });
+
+  return true;
 }
 
 async function detectUnusualActivity() {
@@ -101,7 +104,10 @@ async function detectUnusualActivity() {
       personDetectionCount += 1;
 
       if (personDetectionCount >= REQUIRED_DETECTIONS) {
-        captureWebcamEvidence("multiple-people");
+        if (captureWebcamEvidence("multiple-people")) {
+          showWarning("multiple-people");
+        }
+
         personDetectionCount = 0;
       }
     } else {
@@ -126,7 +132,12 @@ async function detectUnusualActivity() {
         if (
           objectDetectionCounts[objectName] >= REQUIRED_DETECTIONS
         ) {
-          captureWebcamEvidence(`object-${objectName.replace(/ /g, "-")}`);
+          const reason = `object-${objectName.replace(/ /g, "-")}`;
+
+          if (captureWebcamEvidence(reason)) {
+            showWarning(reason);
+          }
+
           objectDetectionCounts[objectName] = 0;
         }
       } else {
@@ -195,6 +206,24 @@ endExamButton.addEventListener("click", () => {
   }
 });
 
+// A track ends when the camera is unplugged or its permission is revoked.
+// Clicking Stop Camera calls track.stop(), which does not fire this.
+function handleCameraLost() {
+  stopObjectDetection();
+
+  cameraStream = null;
+  camera.srcObject = null;
+  cameraStatus.textContent = "Camera stopped unexpectedly";
+  updateHealth("camera", "error", "Lost");
+
+  startButton.disabled = false;
+  stopButton.disabled = true;
+
+  if (monitoringActive) {
+    showWarning("camera");
+  }
+}
+
 startButton.addEventListener("click", async () => {
   if (cameraStream) return;
 
@@ -209,6 +238,10 @@ startButton.addEventListener("click", async () => {
 
     camera.srcObject = cameraStream;
     await camera.play();
+
+    cameraStream.getVideoTracks().forEach((track) => {
+      track.addEventListener("ended", handleCameraLost);
+    });
 
     cameraStatus.textContent = "Camera is active";
     stopButton.disabled = false;
@@ -236,6 +269,13 @@ startButton.addEventListener("click", async () => {
 });
 
 stopButton.addEventListener("click", () => {
+  // The camera must stay on for as long as the exam is monitored.
+  if (monitoringActive) {
+    cameraStatus.textContent =
+      "Stop monitoring before stopping the camera.";
+    return;
+  }
+
   stopObjectDetection();
   if (cameraStream) {
     cameraStream.getTracks().forEach((track) => track.stop());
@@ -317,12 +357,21 @@ const dismissWarningButton = document.getElementById("dismiss-warning");
 const warningMessages = {
   focus: "You left the exam window. Stay on this window until the test is finished.",
   audio: "Loud sound detected. Keep your surroundings quiet during the test.",
+  camera: "The camera stopped during the test. Start it again immediately.",
+  "multiple-people":
+    "Another person is visible on camera. You must be alone during the test.",
+  "object-cell-phone":
+    "A phone is visible on camera. Put it out of sight for the rest of the test.",
+  "object-book":
+    "A book is visible on camera. Remove all study material from view.",
+  "object-laptop":
+    "A second screen is visible on camera. Remove it from view.",
 };
 
-let violationCounts = { focus: 0, audio: 0 };
+let violationCounts = {};
 
 function showWarning(violation) {
-  violationCounts[violation] += 1;
+  violationCounts[violation] = (violationCounts[violation] || 0) + 1;
 
   warningMessage.textContent =
     `Warning ${violationCounts[violation]}: ${warningMessages[violation]} ` +
@@ -443,7 +492,7 @@ startMonitoringButton.addEventListener("click", async () => {
 
   startMonitoringButton.disabled = true;
   monitoringStatus.textContent = "Starting monitoring...";
-  violationCounts = { focus: 0, audio: 0 };
+  violationCounts = {};
   hideWarning();
 
   try {
@@ -453,6 +502,7 @@ startMonitoringButton.addEventListener("click", async () => {
     monitoringActive = true;
     monitoringStatus.textContent = "Monitoring is active";
     stopMonitoringButton.disabled = false;
+    stopButton.disabled = true;
     updateHealth("monitoring", "healthy", "Active");
     startObjectDetection();
   } catch (error) {
@@ -487,6 +537,7 @@ stopMonitoringButton.addEventListener("click", async () => {
 
   startMonitoringButton.disabled = false;
   stopMonitoringButton.disabled = true;
+  stopButton.disabled = !cameraStream;
 });
 
 
