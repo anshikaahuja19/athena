@@ -32,7 +32,8 @@
   <div id="fullscreen-overlay" class="overlay" hidden>
     <div class="overlay-card" role="dialog" aria-modal="true" aria-labelledby="fullscreen-title">
       <h2 id="fullscreen-title">Switch to Full Screen</h2>
-      <p>The exam must run in full screen. Once you continue, other apps and windows are blocked until you click End Exam.</p>
+      <p>The exam must run in full screen. Once you continue, other apps and windows are blocked until you click End
+        Exam.</p>
       <p id="fullscreen-error" class="overlay-error" hidden></p>
       <button id="enter-fullscreen">Enter Full Screen</button>
     </div>
@@ -44,10 +45,56 @@
   </div>
 
   <main>
+
     <section>
-      <h2>System Status</h2>
-      <p id="status">Checking Electron connection...</p>
+      <h2>System Health</h2>
+
+      <div class="health-list">
+        <div class="health-row">
+          <span>Electron Application</span>
+          <span id="health-app" class="health-indicator checking">
+            Checking...
+          </span>
+        </div>
+
+        <div class="health-row">
+          <span>Camera</span>
+          <span id="health-camera" class="health-indicator inactive">
+            Not started
+          </span>
+        </div>
+
+        <div class="health-row">
+          <span>Microphone</span>
+          <span id="health-microphone" class="health-indicator inactive">
+            Not started
+          </span>
+        </div>
+
+        <div class="health-row">
+          <span>Desktop Monitoring</span>
+          <span id="health-monitoring" class="health-indicator inactive">
+            Stopped
+          </span>
+        </div>
+
+        <div class="health-row">
+          <span>Screen Capture</span>
+          <span id="health-screenshot" class="health-indicator inactive">
+            Waiting
+          </span>
+        </div>
+      </div>
+
+      <p id="health-last-screenshot">
+        Last successful screenshot: Not yet captured
+      </p>
+
+      <p id="health-summary" role="status">
+        Checking system health...
+      </p>
     </section>
+
 
     <section>
       <h2>Camera Preview</h2>
@@ -66,7 +113,7 @@
     </section>
 
 
-    
+
   </main>
 
   <script src="./renderer.js"></script>

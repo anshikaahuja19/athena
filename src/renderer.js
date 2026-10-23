@@ -1,12 +1,10 @@
-const status = document.getElementById("status");
+
 const camera = document.getElementById("camera");
 const cameraStatus = document.getElementById("camera-status");
 const startButton = document.getElementById("start-camera");
 const stopButton = document.getElementById("stop-camera");
 
 let cameraStream = null;
-
-status.textContent = window.proctor.getAppStatus();
 
 const instructionsOverlay = document.getElementById("instructions-overlay");
 const fullscreenOverlay = document.getElementById("fullscreen-overlay");
@@ -61,6 +59,7 @@ startButton.addEventListener("click", async () => {
 
     cameraStatus.textContent = "Camera is active";
     stopButton.disabled = false;
+    updateHealth("camera", "healthy", "Active");
   } catch (error) {
     cameraStream = null;
 
@@ -72,6 +71,7 @@ startButton.addEventListener("click", async () => {
 
     cameraStatus.textContent =
       messages[error.name] || `Camera failed: ${error.message}`;
+    updateHealth("camera", "error", "Unavailable");
 
     console.error("Camera error:", error);
   } finally {
@@ -87,6 +87,7 @@ stopButton.addEventListener("click", () => {
 
   camera.srcObject = null;
   cameraStatus.textContent = "Camera stopped";
+  updateHealth("camera", "inactive", "Not started");
   startButton.disabled = false;
   stopButton.disabled = true;
 });
@@ -101,6 +102,72 @@ const stopMonitoringButton =
 
 const monitoringStatus =
   document.getElementById("monitoring-status");
+
+const healthElements = {
+  app: document.getElementById("health-app"),
+  camera: document.getElementById("health-camera"),
+  microphone: document.getElementById("health-microphone"),
+  monitoring: document.getElementById("health-monitoring"),
+  screenshot: document.getElementById("health-screenshot"),
+};
+
+const lastScreenshotElement = document.getElementById(
+  "health-last-screenshot"
+);
+const healthSummary = document.getElementById("health-summary");
+
+const healthStates = {
+  app: "checking",
+  camera: "inactive",
+  microphone: "inactive",
+  monitoring: "inactive",
+  screenshot: "inactive",
+};
+
+function updateHealth(component, state, label) {
+  const element = healthElements[component];
+  if (!element) return;
+
+  healthStates[component] = state;
+  element.className = `health-indicator ${state}`;
+  element.textContent = label;
+
+  updateHealthSummary();
+}
+
+function updateHealthSummary() {
+  if (Object.values(healthStates).includes("error")) {
+    healthSummary.textContent =
+      "Attention required: one or more components have an error.";
+    return;
+  }
+
+  if (Object.values(healthStates).every(
+    (state) => state === "healthy"
+  )) {
+    healthSummary.textContent =
+      "All monitored components are healthy.";
+    return;
+  }
+
+  healthSummary.textContent =
+    "System is running. Some components are inactive or awaiting checks.";
+}
+
+// Verify that the renderer can communicate with the Electron preload bridge.
+try {
+  const appStatus = window.proctor.getAppStatus();
+
+  if (appStatus === "Electron is running") {
+    updateHealth("app", "healthy", "Running");
+  } else {
+    updateHealth("app", "error", "Unexpected response");
+  }
+} catch (error) {
+  updateHealth("app", "error", "Unavailable");
+  console.error("Application health check failed:", error);
+}
+
 
 const warningBanner = document.getElementById("warning-banner");
 const warningMessage = document.getElementById("warning-message");
@@ -128,11 +195,36 @@ function hideWarning() {
 
 dismissWarningButton.addEventListener("click", hideWarning);
 
+
 window.proctor.onEvent((event) => {
+  // Keep the existing warning behavior.
   if (event.violation in warningMessages) {
     showWarning(event.violation);
   }
+
+  // A screenshot event means a screenshot was captured.
+  if (event.type === "screenshot") {
+    updateHealth("screenshot", "healthy", "Captured");
+
+    if (lastScreenshotElement) {
+      const time = event.timestamp
+        ? new Date(event.timestamp).toLocaleString()
+        : "Time unavailable";
+
+      lastScreenshotElement.textContent =
+        `Last successful screenshot: ${time}`;
+    }
+  }
+
+  // Report screenshot capture errors.
+  if (
+    event.type === "error" &&
+    event.message?.includes("Screen capture failed")
+  ) {
+    updateHealth("screenshot", "error", "Capture failed");
+  }
 });
+
 
 let monitoringActive = false;
 let microphoneStream = null;
@@ -148,6 +240,7 @@ async function startMicrophoneMonitoring() {
     audio: true,
     video: false,
   });
+  updateHealth("microphone", "healthy", "Active");
 
   audioContext = new AudioContext();
   await audioContext.resume();
@@ -198,6 +291,7 @@ function stopMicrophoneMonitoring() {
     audioContext.close().catch(() => {});
     audioContext = null;
   }
+  updateHealth("microphone", "inactive", "Not started");
 }
 
 
@@ -226,12 +320,14 @@ startMonitoringButton.addEventListener("click", async () => {
     monitoringActive = true;
     monitoringStatus.textContent = "Monitoring is active";
     stopMonitoringButton.disabled = false;
+    updateHealth("monitoring", "healthy", "Active");
   } catch (error) {
     monitoringActive = false;
     stopMicrophoneMonitoring();
 
     monitoringStatus.textContent =
       `Could not start monitoring: ${error.message}`;
+    updateHealth("monitoring", "error", "Failed to start");
 
     console.error("Monitoring error:", error);
   } finally {
@@ -247,8 +343,10 @@ stopMonitoringButton.addEventListener("click", async () => {
   try {
     await window.proctor.stopMonitoring();
     monitoringStatus.textContent = "Monitoring is stopped";
+    updateHealth("monitoring", "inactive", "Stopped");
   } catch (error) {
     monitoringStatus.textContent = "Error stopping monitoring";
+    updateHealth("monitoring", "error", "Stop failed");
     console.error("Stop monitoring error:", error);
   }
 
