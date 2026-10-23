@@ -1,8 +1,6 @@
 const { contextBridge,ipcRenderer  } = require("electron");
 
 contextBridge.exposeInMainWorld("proctor", {
-  getAppStatus: () => "Electron is running",
-
   startMonitoring: () =>
     ipcRenderer.invoke("monitoring:start"),
 

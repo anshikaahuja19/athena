@@ -51,38 +51,42 @@
     <section>
       <h2>System Health</h2>
 
+      <div class="health-list">
+        <div class="health-row">
+          <span>Camera</span>
+          <span id="health-camera" class="health-indicator inactive">
+            Not started
+          </span>
+        </div>
 
+        <div class="health-row">
+          <span>Microphone</span>
+          <span id="health-microphone" class="health-indicator inactive">
+            Not started
+          </span>
+        </div>
 
-      <div class="health-row">
-        <span>Camera</span>
-        <span id="health-camera" class="health-indicator inactive">
-          Not started
-        </span>
+        <div class="health-row">
+          <span>Desktop Monitoring</span>
+          <span id="health-monitoring" class="health-indicator inactive">
+            Stopped
+          </span>
+        </div>
+
+        <div class="health-row">
+          <span>Object Detection</span>
+          <span id="health-detection" class="health-indicator inactive">
+            Not loaded
+          </span>
+        </div>
+
+        <div class="health-row">
+          <span>Screen Capture</span>
+          <span id="health-screenshot" class="health-indicator inactive">
+            Waiting
+          </span>
+        </div>
       </div>
-
-      <div class="health-row">
-        <span>Microphone</span>
-        <span id="health-microphone" class="health-indicator inactive">
-          Not started
-        </span>
-      </div>
-
-      <div class="health-row">
-        <span>Desktop Monitoring</span>
-        <span id="health-monitoring" class="health-indicator inactive">
-          Stopped
-        </span>
-      </div>
-
-      <div class="health-row">
-        <span>Screen Capture</span>
-        <span id="health-screenshot" class="health-indicator inactive">
-          Waiting
-        </span>
-      </div>
-      </div>
-
-
 
       <p id="health-summary" role="status">
         Checking system health...

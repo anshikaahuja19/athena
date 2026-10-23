@@ -10,7 +10,6 @@
   --warning: #c99a2e;
   --warning-soft: #f7ebcc;
   --text: #1a2230;
-  --muted: #566070;
   --border: #d4d9e2;
 }
 
@@ -75,7 +74,6 @@ section h2::before {
   box-shadow: 0 0 0 4px var(--accent-soft);
 }
 
-#status,
 #camera-status,
 #monitoring-status {
   width: fit-content;
@@ -264,17 +262,13 @@ button:disabled {
   color: var(--danger);
 }
 
-#health-last-screenshot,
 #health-summary {
   margin-top: 16px;
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-#health-summary {
   padding: 10px 12px;
   background: var(--accent-soft);
   border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.5;
   font-weight: 500;
 }
 

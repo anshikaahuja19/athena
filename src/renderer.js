@@ -5,6 +5,54 @@ const stopButton = document.getElementById("stop-camera");
 
 let cameraStream = null;
 
+const healthElements = {
+  camera: document.getElementById("health-camera"),
+  microphone: document.getElementById("health-microphone"),
+  monitoring: document.getElementById("health-monitoring"),
+  detection: document.getElementById("health-detection"),
+  screenshot: document.getElementById("health-screenshot"),
+};
+
+const healthSummary = document.getElementById("health-summary");
+
+const healthStates = {
+  camera: "inactive",
+  microphone: "inactive",
+  monitoring: "inactive",
+  detection: "inactive",
+  screenshot: "inactive",
+};
+
+function updateHealth(component, state, label) {
+  const element = healthElements[component];
+  if (!element) return;
+
+  healthStates[component] = state;
+  element.className = `health-indicator ${state}`;
+  element.textContent = label;
+
+  updateHealthSummary();
+}
+
+function updateHealthSummary() {
+  if (Object.values(healthStates).includes("error")) {
+    healthSummary.textContent =
+      "Attention required: one or more components have an error.";
+    return;
+  }
+
+  if (Object.values(healthStates).every(
+    (state) => state === "healthy"
+  )) {
+    healthSummary.textContent =
+      "All monitored components are healthy.";
+    return;
+  }
+
+  healthSummary.textContent =
+    "System is running. Some components are inactive or awaiting checks.";
+}
+
 let objectDetectionModel = null;
 let detectionActive = false;
 let detectionTimer = null;
@@ -26,18 +74,18 @@ const MONITORED_OBJECTS = new Set([
 
 async function loadObjectDetectionModel() {
   try {
-    cameraStatus.textContent = "Loading object detection model...";
+    updateHealth("detection", "checking", "Loading model");
 
     objectDetectionModel = await cocoSsd.load();
 
-    cameraStatus.textContent = "Camera and object detection ready";
-        if (monitoringActive && cameraStream) {
+    updateHealth("detection", "inactive", "Ready");
+
+    if (monitoringActive && cameraStream) {
       startObjectDetection();
     }
   } catch (error) {
     console.error("Model loading failed:", error);
-    cameraStatus.textContent =
-      "Object detection unavailable. Check the console.";
+    updateHealth("detection", "error", "Unavailable");
   }
 }
 
@@ -70,14 +118,9 @@ function captureWebcamEvidence(reason) {
   window.proctor.saveWebcamEvidence({
     reason,
     imageData,
-  })
-    .then(() => {
-      updateHealth("screenshot", "healthy", "Operational");
-    })
-    .catch((error) => {
-      console.error("Could not save webcam evidence:", error);
-      updateHealth("screenshot", "error", "Capture failed");
-    });
+  }).catch((error) => {
+    console.error("Could not save webcam evidence:", error);
+  });
 
   return true;
 }
@@ -157,6 +200,8 @@ function startObjectDetection() {
     detectUnusualActivity,
     DETECTION_INTERVAL_MS
   );
+
+  updateHealth("detection", "healthy", "Active");
 }
 
 function stopObjectDetection() {
@@ -165,6 +210,11 @@ function stopObjectDetection() {
   detectionTimer = null;
   personDetectionCount = 0;
   objectDetectionCounts = {};
+
+  // Leave an "Unavailable" model failure showing.
+  if (objectDetectionModel) {
+    updateHealth("detection", "inactive", "Ready");
+  }
 }
 loadObjectDetectionModel();
 
@@ -299,53 +349,6 @@ const stopMonitoringButton =
 
 const monitoringStatus =
   document.getElementById("monitoring-status");
-
-const healthElements = {
-  camera: document.getElementById("health-camera"),
-  microphone: document.getElementById("health-microphone"),
-  monitoring: document.getElementById("health-monitoring"),
-  screenshot: document.getElementById("health-screenshot"),
-};
-
-
-const healthSummary = document.getElementById("health-summary");
-
-const healthStates = {
-  camera: "inactive",
-  microphone: "inactive",
-  monitoring: "inactive",
-  screenshot: "inactive",
-};
-
-function updateHealth(component, state, label) {
-  const element = healthElements[component];
-  if (!element) return;
-
-  healthStates[component] = state;
-  element.className = `health-indicator ${state}`;
-  element.textContent = label;
-
-  updateHealthSummary();
-}
-
-function updateHealthSummary() {
-  if (Object.values(healthStates).includes("error")) {
-    healthSummary.textContent =
-      "Attention required: one or more components have an error.";
-    return;
-  }
-
-  if (Object.values(healthStates).every(
-    (state) => state === "healthy"
-  )) {
-    healthSummary.textContent =
-      "All monitored components are healthy.";
-    return;
-  }
-
-  healthSummary.textContent =
-    "System is running. Some components are inactive or awaiting checks.";
-}
 
 
 
