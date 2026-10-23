@@ -200,7 +200,20 @@ function stopMicrophoneMonitoring() {
   }
 }
 
+
 startMonitoringButton.addEventListener("click", async () => {
+  const cameraIsActive =
+    cameraStream &&
+    cameraStream.getVideoTracks().some(
+      (track) => track.readyState === "live" && track.enabled
+    );
+
+  if (!cameraIsActive) {
+    monitoringStatus.textContent =
+      "Start the camera before starting monitoring.";
+    return;
+  }
+
   startMonitoringButton.disabled = true;
   monitoringStatus.textContent = "Starting monitoring...";
   violationCounts = { focus: 0, audio: 0 };

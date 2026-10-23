@@ -212,11 +212,6 @@ button:disabled {
   color: var(--danger) !important;
 }
 
-#timeline {
-  padding-left: 20px;
-  color: var(--text);
-}
-
 @media (max-width: 750px) {
   main {
     grid-template-columns: 1fr;
