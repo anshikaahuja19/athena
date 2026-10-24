@@ -1,0 +1,57 @@
+[
+  {
+    "id": 1,
+    "question": "Which Electron process creates and manages BrowserWindow instances?",
+    "options": [
+      "The renderer process",
+      "The main process",
+      "The preload script",
+      "The GPU process"
+    ],
+    "correctAnswer": 1
+  },
+  {
+    "id": 2,
+    "question": "Which API does a preload script use to expose functions to the page safely?",
+    "options": [
+      "window.require",
+      "contextBridge.exposeInMainWorld",
+      "globalThis.electron",
+      "ipcRenderer.send"
+    ],
+    "correctAnswer": 1
+  },
+  {
+    "id": 3,
+    "question": "Which pair sets up a request and a response between the renderer and the main process?",
+    "options": [
+      "ipcRenderer.invoke and ipcMain.handle",
+      "ipcRenderer.on and ipcMain.on",
+      "webContents.send and app.on",
+      "BrowserWindow.emit and ipcMain.once"
+    ],
+    "correctAnswer": 0
+  },
+  {
+    "id": 4,
+    "question": "What does setting nodeIntegration to false do?",
+    "options": [
+      "It disables the preload script",
+      "It stops the page from using Node APIs such as require",
+      "It turns off the developer tools",
+      "It prevents the app from writing files"
+    ],
+    "correctAnswer": 1
+  },
+  {
+    "id": 5,
+    "question": "What is the purpose of contextIsolation: true?",
+    "options": [
+      "It runs every window in its own process",
+      "It keeps preload and page JavaScript in separate contexts",
+      "It blocks all network requests from the page",
+      "It encrypts data sent over IPC"
+    ],
+    "correctAnswer": 1
+  }
+]
