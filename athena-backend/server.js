@@ -42,6 +42,21 @@ function readTrimmed(body, field) {
   return typeof body[field] === "string" ? body[field].trim() : "";
 }
 
+// Accepts 2 and "2", rejects null, true, "" and anything fractional,
+// all of which Number() would otherwise turn into a usable index.
+function readIndex(value) {
+  if (typeof value === "number") {
+    return Number.isInteger(value) ? value : null;
+  }
+
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value);
+    return Number.isInteger(parsed) ? parsed : null;
+  }
+
+  return null;
+}
+
 // The answer key never leaves the server.
 function questionForStudent(question) {
   return {
@@ -137,6 +152,123 @@ app.get("/exam/session/:sessionId", (request, response) => {
   }
 
   response.json(session);
+});
+
+// Record one answer. Scoring happens here, as each answer arrives, so
+// a crash part way through an exam does not lose the earlier ones.
+app.post("/exam/answer", (request, response) => {
+  const body = request.body ?? {};
+
+  const sessionId = readTrimmed(body, "sessionId");
+  const questionId = readIndex(body.questionId);
+  const selectedAnswer = readIndex(body.selectedAnswer);
+
+  if (!sessionId || questionId === null || selectedAnswer === null) {
+    return response.status(400).json({
+      message: "sessionId, questionId and selectedAnswer are required",
+    });
+  }
+
+  const question = readQuestions().find((item) => item.id === questionId);
+
+  if (!question) {
+    return response.status(404).json({ message: "Question not found" });
+  }
+
+  if (selectedAnswer < 0 || selectedAnswer >= question.options.length) {
+    return response.status(400).json({
+      message: "selectedAnswer is not one of the options",
+    });
+  }
+
+  const sessions = readSessions();
+
+  const session = sessions.find((item) => item.sessionId === sessionId);
+
+  if (!session) {
+    return response.status(404).json({ message: "Session not found" });
+  }
+
+  if (session.status !== "in-progress") {
+    return response.status(400).json({ message: "Exam is already submitted" });
+  }
+
+  if (session.answers.some((answer) => answer.questionId === questionId)) {
+    return response.status(400).json({ message: "Question already answered" });
+  }
+
+  const isCorrect = selectedAnswer === question.correctAnswer;
+
+  session.answers.push({
+    questionId,
+    selectedAnswer,
+    isCorrect,
+    answeredAt: new Date().toISOString(),
+  });
+
+  session.attempted += 1;
+
+  if (isCorrect) {
+    session.correct += 1;
+  } else {
+    session.wrong += 1;
+  }
+
+  saveSessions(sessions);
+
+  // Whether the answer was right is withheld until the exam is submitted.
+  response.json({
+    message: "Answer saved",
+    attempted: session.attempted,
+  });
+});
+
+// Finish the exam and hand back the score.
+app.post("/exam/submit", (request, response) => {
+  const body = request.body ?? {};
+
+  const sessionId = readTrimmed(body, "sessionId");
+
+  if (!sessionId) {
+    return response.status(400).json({ message: "sessionId is required" });
+  }
+
+  const sessions = readSessions();
+
+  const session = sessions.find((item) => item.sessionId === sessionId);
+
+  if (!session) {
+    return response.status(404).json({ message: "Session not found" });
+  }
+
+  if (session.status !== "in-progress") {
+    return response.status(400).json({ message: "Exam is already submitted" });
+  }
+
+  session.status = "submitted";
+  session.submittedAt = new Date().toISOString();
+
+  saveSessions(sessions);
+
+  response.json({
+    message: "Exam submitted",
+    result: {
+      total: readQuestions().length,
+      attempted: session.attempted,
+      correct: session.correct,
+      wrong: session.wrong,
+    },
+  });
+});
+
+// Malformed JSON and unexpected faults should answer with JSON too.
+// Express would otherwise return an HTML page containing a stack trace.
+app.use((error, request, response, next) => {
+  console.error("Request failed:", error.message);
+
+  response.status(error.status || 500).json({
+    message: "Request could not be processed",
+  });
 });
 
 app.listen(PORT, () => {
