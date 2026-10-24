@@ -42,6 +42,15 @@ function readTrimmed(body, field) {
   return typeof body[field] === "string" ? body[field].trim() : "";
 }
 
+// The answer key never leaves the server.
+function questionForStudent(question) {
+  return {
+    id: question.id,
+    question: question.question,
+    options: question.options,
+  };
+}
+
 // Health check, so the desktop app can confirm the backend is up.
 app.get("/", (request, response) => {
   response.json({
@@ -49,6 +58,24 @@ app.get("/", (request, response) => {
     questions: readQuestions().length,
     sessions: readSessions().length,
   });
+});
+
+// Every question, without the answer key.
+app.get("/exam/mcq", (request, response) => {
+  response.json(readQuestions().map(questionForStudent));
+});
+
+// One question, without the answer key.
+app.get("/exam/mcq/:id", (request, response) => {
+  const question = readQuestions().find(
+    (item) => item.id === Number(request.params.id)
+  );
+
+  if (!question) {
+    return response.status(404).json({ message: "Question not found" });
+  }
+
+  response.json(questionForStudent(question));
 });
 
 // Start a new exam session for one candidate.
