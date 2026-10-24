@@ -1,4 +1,5 @@
 node_modules/
+athena-backend/data/sessions.json
 .env
 evidence/
 *.webm
