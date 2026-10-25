@@ -93,19 +93,6 @@ app.get("/exam/mcq", (request, response) => {
   response.json(readQuestions().map(questionForStudent));
 });
 
-// One question, without the answer key.
-app.get("/exam/mcq/:id", (request, response) => {
-  const question = readQuestions().find(
-    (item) => item.id === Number(request.params.id)
-  );
-
-  if (!question) {
-    return response.status(404).json({ message: "Question not found" });
-  }
-
-  response.json(questionForStudent(question));
-});
-
 // Start a new exam session for one candidate.
 app.post("/exam/start", (request, response) => {
   const body = request.body ?? {};

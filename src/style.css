@@ -312,6 +312,58 @@ input[type="text"]:focus {
   outline-offset: -1px;
 }
 
+.question-list {
+  margin: 20px 0;
+  padding-left: 22px;
+}
+
+.question {
+  margin-bottom: 24px;
+}
+
+.question-text {
+  margin: 0 0 12px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-weight: 400;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.option:hover:has(input:enabled) {
+  border-color: var(--accent);
+}
+
+.option input {
+  margin: 2px 0 0;
+  accent-color: var(--accent);
+}
+
+.option:has(input:disabled) {
+  cursor: default;
+  opacity: 0.75;
+}
+
+.question.answered .option:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  opacity: 1;
+}
+
+.result-value {
+  font-weight: 600;
+}
+
 .form-error {
   padding: 10px 12px;
   border-radius: 6px;

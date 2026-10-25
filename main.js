@@ -327,6 +327,85 @@ ipcMain.handle("exam:start", async (event, details) => {
   }
 });
 
+ipcMain.handle("exam:questions", async (event) => {
+  if (!mainWindow || event.sender !== mainWindow.webContents) {
+    return { success: false, message: "Unauthorized request" };
+  }
+
+  if (!examSession) {
+    return { success: false, message: "No active exam session" };
+  }
+
+  try {
+    const questions = await backendRequest("/exam/mcq");
+    return { success: true, questions };
+  } catch (error) {
+    return { success: false, message: error.message };
+  }
+});
+
+ipcMain.handle("exam:answer", async (event, answer) => {
+  if (!mainWindow || event.sender !== mainWindow.webContents) {
+    return { success: false, message: "Unauthorized request" };
+  }
+
+  if (!examSession) {
+    return { success: false, message: "No active exam session" };
+  }
+
+  const body = answer ?? {};
+
+  try {
+    const result = await backendRequest("/exam/answer", {
+      method: "POST",
+      body: JSON.stringify({
+        sessionId: examSession.sessionId,
+        questionId: body.questionId,
+        selectedAnswer: body.selectedAnswer,
+      }),
+    });
+
+    return { success: true, attempted: result.attempted };
+  } catch (error) {
+    return { success: false, message: error.message };
+  }
+});
+
+ipcMain.handle("exam:submit", async (event) => {
+  if (!mainWindow || event.sender !== mainWindow.webContents) {
+    return { success: false, message: "Unauthorized request" };
+  }
+
+  if (!examSession) {
+    return { success: false, message: "No active exam session" };
+  }
+
+  try {
+    const submitted = await backendRequest("/exam/submit", {
+      method: "POST",
+      body: JSON.stringify({ sessionId: examSession.sessionId }),
+    });
+
+    // The submit reply only counts violations. Read the session back
+    // for the breakdown by type shown on the result screen.
+    let violations = [];
+
+    try {
+      const session = await backendRequest(
+        `/exam/session/${examSession.sessionId}`
+      );
+
+      violations = session.violations ?? [];
+    } catch (error) {
+      console.error("Could not read violation detail:", error.message);
+    }
+
+    return { success: true, result: submitted.result, violations };
+  } catch (error) {
+    return { success: false, message: error.message };
+  }
+});
+
 ipcMain.handle("exam:violation", async (event, violation) => {
   if (!mainWindow || event.sender !== mainWindow.webContents) {
     return { success: false, message: "Unauthorized request" };

@@ -326,11 +326,188 @@ detailsForm.addEventListener("submit", async (event) => {
 
 startTestButton.disabled = false;
 
+const examStatus = document.getElementById("exam-status");
+const examError = document.getElementById("exam-error");
+const questionList = document.getElementById("question-list");
+const resultSummary = document.getElementById("result-summary");
+const resultBreakdown = document.getElementById("result-breakdown");
+
+// Short names for the result screen. The sentences in warningMessages
+// are written to warn a candidate, not to summarise afterwards.
+const violationLabels = {
+  focus: "Left the window",
+  audio: "Loud sound",
+  camera: "Camera stopped",
+  "multiple-people": "Another person seen",
+  "object-cell-phone": "Phone seen",
+  "object-book": "Book seen",
+  "object-laptop": "Second screen seen",
+};
+
+let examQuestions = [];
+const answeredQuestions = new Set();
+
+function showExamError(message) {
+  examError.textContent = message;
+  examError.hidden = false;
+}
+
+function updateExamProgress() {
+  const total = examQuestions.length;
+  const answered = answeredQuestions.size;
+
+  examStatus.textContent =
+    `Answered ${answered} of ${total}. An answer is final once chosen.`;
+
+  submitExamButton.disabled = total === 0 || answered < total;
+}
+
+async function sendAnswer(questionId, selectedAnswer, item) {
+  const inputs = item.querySelectorAll("input[type=radio]");
+
+  // Lock the question while the answer is in flight, and leave it
+  // locked once the server has it.
+  inputs.forEach((input) => {
+    input.disabled = true;
+  });
+
+  const result = await window.proctor.submitAnswer({
+    questionId,
+    selectedAnswer,
+  });
+
+  if (!result.success) {
+    inputs.forEach((input) => {
+      input.disabled = false;
+    });
+
+    showExamError(result.message);
+    return;
+  }
+
+  examError.hidden = true;
+  item.classList.add("answered");
+  answeredQuestions.add(questionId);
+  updateExamProgress();
+}
+
+function renderQuestions() {
+  questionList.replaceChildren();
+
+  for (const question of examQuestions) {
+    const item = document.createElement("li");
+    item.className = "question";
+
+    const text = document.createElement("p");
+    text.className = "question-text";
+    text.textContent = question.question;
+    item.appendChild(text);
+
+    question.options.forEach((option, index) => {
+      const label = document.createElement("label");
+      label.className = "option";
+
+      const input = document.createElement("input");
+      input.type = "radio";
+      input.name = `question-${question.id}`;
+      input.value = String(index);
+
+      input.addEventListener("change", () => {
+        sendAnswer(question.id, index, item);
+      });
+
+      const optionText = document.createElement("span");
+      optionText.textContent = option;
+
+      label.append(input, optionText);
+      item.appendChild(label);
+    });
+
+    questionList.appendChild(item);
+  }
+
+  updateExamProgress();
+}
+
+async function loadQuestions() {
+  examError.hidden = true;
+  examStatus.textContent = "Loading questions...";
+
+  const result = await window.proctor.getQuestions();
+
+  if (!result.success) {
+    examStatus.textContent = "Questions could not be loaded.";
+    showExamError(result.message);
+    return;
+  }
+
+  examQuestions = result.questions;
+  renderQuestions();
+}
+
+function addResultRow(label, value) {
+  const row = document.createElement("div");
+  row.className = "health-row";
+
+  const name = document.createElement("span");
+  name.textContent = label;
+
+  const amount = document.createElement("span");
+  amount.className = "result-value";
+  amount.textContent = value;
+
+  row.append(name, amount);
+  resultBreakdown.appendChild(row);
+}
+
+function renderResult(result, violations) {
+  resultSummary.textContent =
+    `You scored ${result.correct} out of ${result.total}.`;
+
+  resultBreakdown.replaceChildren();
+
+  addResultRow("Attempted", `${result.attempted} of ${result.total}`);
+  addResultRow("Correct", String(result.correct));
+  addResultRow("Wrong", String(result.wrong));
+
+  const counts = {};
+
+  for (const violation of violations) {
+    counts[violation.type] = (counts[violation.type] || 0) + 1;
+  }
+
+  const recorded = Object.entries(counts);
+
+  if (!recorded.length) {
+    addResultRow("Violations", "None");
+    return;
+  }
+
+  for (const [type, count] of recorded) {
+    addResultRow(violationLabels[type] ?? type, String(count));
+  }
+}
+
 nextToExamButton.addEventListener("click", () => {
   showScreen("exam");
+  loadQuestions();
 });
 
-submitExamButton.addEventListener("click", () => {
+submitExamButton.addEventListener("click", async () => {
+  submitExamButton.disabled = true;
+  submitExamButton.textContent = "Submitting...";
+
+  const result = await window.proctor.submitExam();
+
+  submitExamButton.textContent = "Submit Test";
+
+  if (!result.success) {
+    submitExamButton.disabled = false;
+    showExamError(result.message);
+    return;
+  }
+
+  renderResult(result.result, result.violations);
   showScreen("result");
 });
 

@@ -10,6 +10,15 @@ contextBridge.exposeInMainWorld("proctor", {
   startExam: (details) =>
     ipcRenderer.invoke("exam:start", details),
 
+  getQuestions: () =>
+    ipcRenderer.invoke("exam:questions"),
+
+  submitAnswer: (answer) =>
+    ipcRenderer.invoke("exam:answer", answer),
+
+  submitExam: () =>
+    ipcRenderer.invoke("exam:submit"),
+
   reportViolation: (violation) =>
     ipcRenderer.invoke("exam:violation", violation),
 

@@ -141,10 +141,14 @@
 
     <div id="screen-exam" class="screen screen-narrow" hidden>
       <section>
-        <h2>Exam</h2>
-        <p>Questions are loaded here in a later step.</p>
+        <h2>Electron Exam</h2>
+        <p id="exam-status" role="status">Loading questions...</p>
 
-        <button id="submit-exam">Submit Test</button>
+        <ol id="question-list" class="question-list"></ol>
+
+        <p id="exam-error" class="form-error" hidden></p>
+
+        <button id="submit-exam" disabled>Submit Test</button>
       </section>
     </div>
 
@@ -152,6 +156,8 @@
       <section>
         <h2>Result</h2>
         <p id="result-summary">Your result appears here.</p>
+
+        <div id="result-breakdown" class="health-list"></div>
       </section>
     </div>
 
