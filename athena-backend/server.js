@@ -194,20 +194,33 @@ app.post("/exam/answer", (request, response) => {
     return response.status(400).json({ message: "Exam is already submitted" });
   }
 
-  if (session.answers.some((answer) => answer.questionId === questionId)) {
-    return response.status(400).json({ message: "Question already answered" });
-  }
-
   const isCorrect = selectedAnswer === question.correctAnswer;
 
-  session.answers.push({
-    questionId,
-    selectedAnswer,
-    isCorrect,
-    answeredAt: new Date().toISOString(),
-  });
+  const existing = session.answers.find(
+    (answer) => answer.questionId === questionId
+  );
 
-  session.attempted += 1;
+  if (existing) {
+    // Changing an answer: take back what the old one scored first.
+    if (existing.isCorrect) {
+      session.correct -= 1;
+    } else {
+      session.wrong -= 1;
+    }
+
+    existing.selectedAnswer = selectedAnswer;
+    existing.isCorrect = isCorrect;
+    existing.answeredAt = new Date().toISOString();
+  } else {
+    session.answers.push({
+      questionId,
+      selectedAnswer,
+      isCorrect,
+      answeredAt: new Date().toISOString(),
+    });
+
+    session.attempted += 1;
+  }
 
   if (isCorrect) {
     session.correct += 1;

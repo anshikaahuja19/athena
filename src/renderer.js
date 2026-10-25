@@ -345,7 +345,10 @@ const violationLabels = {
 };
 
 let examQuestions = [];
-const answeredQuestions = new Set();
+
+// Question id to the option index the server has accepted, so a
+// rejected change can be rolled back on screen.
+const acceptedAnswers = new Map();
 
 function showExamError(message) {
   examError.textContent = message;
@@ -354,19 +357,29 @@ function showExamError(message) {
 
 function updateExamProgress() {
   const total = examQuestions.length;
-  const answered = answeredQuestions.size;
+  const answered = acceptedAnswers.size;
 
   examStatus.textContent =
-    `Answered ${answered} of ${total}. An answer is final once chosen.`;
+    `Answered ${answered} of ${total}. ` +
+    "You can change an answer until you submit.";
 
   submitExamButton.disabled = total === 0 || answered < total;
+}
+
+// Puts the radios back to the last answer the server accepted.
+function restoreSelection(questionId, inputs) {
+  const accepted = acceptedAnswers.get(questionId);
+
+  inputs.forEach((input) => {
+    input.checked = accepted !== undefined && Number(input.value) === accepted;
+  });
 }
 
 async function sendAnswer(questionId, selectedAnswer, item) {
   const inputs = item.querySelectorAll("input[type=radio]");
 
-  // Lock the question while the answer is in flight, and leave it
-  // locked once the server has it.
+  // Locked only while the answer is in flight, so a quick second
+  // click cannot overtake the first.
   inputs.forEach((input) => {
     input.disabled = true;
   });
@@ -376,18 +389,20 @@ async function sendAnswer(questionId, selectedAnswer, item) {
     selectedAnswer,
   });
 
-  if (!result.success) {
-    inputs.forEach((input) => {
-      input.disabled = false;
-    });
+  inputs.forEach((input) => {
+    input.disabled = false;
+  });
 
+  if (!result.success) {
+    // Never leave a selection showing that the server did not take.
+    restoreSelection(questionId, inputs);
     showExamError(result.message);
     return;
   }
 
   examError.hidden = true;
   item.classList.add("answered");
-  answeredQuestions.add(questionId);
+  acceptedAnswers.set(questionId, selectedAnswer);
   updateExamProgress();
 }
 
