@@ -9,6 +9,19 @@ const PORT = process.env.PORT || 6002;
 
 const NAME_MAX_LENGTH = 80;
 const URN_PATTERN = /^[A-Za-z0-9/-]{3,40}$/;
+const DETAIL_MAX_LENGTH = 200;
+
+// Conduct violations raised by the proctoring side of the desktop app.
+// These match the keys of warningMessages in src/renderer.js.
+const VIOLATION_TYPES = new Set([
+  "focus",
+  "audio",
+  "camera",
+  "multiple-people",
+  "object-cell-phone",
+  "object-book",
+  "object-laptop",
+]);
 
 app.use(cors());
 app.use(express.json());
@@ -125,6 +138,7 @@ app.post("/exam/start", (request, response) => {
     correct: 0,
     wrong: 0,
     answers: [],
+    violations: [],
   };
 
   sessions.push(session);
@@ -223,6 +237,51 @@ app.post("/exam/answer", (request, response) => {
   });
 });
 
+// Record a proctoring violation against the session. Accepted after
+// submission too, since the candidate stays monitored until they end
+// the exam.
+app.post("/exam/violation", (request, response) => {
+  const body = request.body ?? {};
+
+  const sessionId = readTrimmed(body, "sessionId");
+  const type = readTrimmed(body, "type");
+  const detail = readTrimmed(body, "detail").slice(0, DETAIL_MAX_LENGTH);
+
+  if (!sessionId || !VIOLATION_TYPES.has(type)) {
+    return response.status(400).json({
+      message: "sessionId and a known violation type are required",
+    });
+  }
+
+  const sessions = readSessions();
+
+  const session = sessions.find((item) => item.sessionId === sessionId);
+
+  if (!session) {
+    return response.status(404).json({ message: "Session not found" });
+  }
+
+  // Sessions started before violations were recorded have no array.
+  session.violations ??= [];
+
+  const violation = {
+    type,
+    recordedAt: new Date().toISOString(),
+  };
+
+  if (detail) {
+    violation.detail = detail;
+  }
+
+  session.violations.push(violation);
+  saveSessions(sessions);
+
+  response.json({
+    message: "Violation recorded",
+    violations: session.violations.length,
+  });
+});
+
 // Finish the exam and hand back the score.
 app.post("/exam/submit", (request, response) => {
   const body = request.body ?? {};
@@ -257,6 +316,7 @@ app.post("/exam/submit", (request, response) => {
       attempted: session.attempted,
       correct: session.correct,
       wrong: session.wrong,
+      violations: (session.violations ?? []).length,
     },
   });
 });
