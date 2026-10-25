@@ -7,6 +7,9 @@ contextBridge.exposeInMainWorld("proctor", {
   stopMonitoring: () =>
     ipcRenderer.invoke("monitoring:stop"),
 
+  startExam: (details) =>
+    ipcRenderer.invoke("exam:start", details),
+
   lockExam: () =>
     ipcRenderer.invoke("exam:lock"),
 

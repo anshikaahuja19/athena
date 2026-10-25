@@ -6,6 +6,36 @@ let monitoring = false;
 let examLocked = false;
 let lastScreenshotAt = 0;
 const SCREENSHOT_COOLDOWN_MS = 3000;
+
+const BACKEND_URL = process.env.ATHENA_BACKEND_URL || "http://localhost:6002";
+
+// The session id stays in the main process. The page never receives it,
+// so page code cannot post answers or results on its own.
+let examSession = null;
+
+async function backendRequest(pathname, options = {}) {
+  let response;
+
+  try {
+    response = await fetch(`${BACKEND_URL}${pathname}`, {
+      headers: { "Content-Type": "application/json" },
+      ...options,
+    });
+  } catch (error) {
+    console.error("Backend unreachable:", error.message);
+    throw new Error(
+      "Cannot reach the exam server. Check that it is running."
+    );
+  }
+
+  const payload = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(payload.message || `Request failed (${response.status})`);
+  }
+
+  return payload;
+}
 ipcMain.handle("evidence:save-webcam", async (event, evidence) => {
   // Accept evidence only from this app's renderer.
   if (!mainWindow || event.sender !== mainWindow.webContents) {
@@ -272,12 +302,38 @@ ipcMain.handle("monitoring:sound-activity", () => {
 
 
 
+ipcMain.handle("exam:start", async (event, details) => {
+  if (!mainWindow || event.sender !== mainWindow.webContents) {
+    return { success: false, message: "Unauthorized request" };
+  }
+
+  const body = details ?? {};
+
+  try {
+    const result = await backendRequest("/exam/start", {
+      method: "POST",
+      body: JSON.stringify({ name: body.name, urn: body.urn }),
+    });
+
+    examSession = {
+      sessionId: result.sessionId,
+      name: result.name,
+      urn: result.urn,
+    };
+
+    return { success: true, name: result.name, urn: result.urn };
+  } catch (error) {
+    return { success: false, message: error.message };
+  }
+});
+
 ipcMain.handle("exam:lock", () => {
   lockExam();
   return { success: examLocked };
 });
 
 ipcMain.handle("exam:end", () => {
+  examSession = null;
   unlockExam();
   app.quit();
   return { success: true };

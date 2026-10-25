@@ -16,6 +16,10 @@ function showScreen(name) {
   for (const [screenName, element] of Object.entries(screens)) {
     element.hidden = screenName !== name;
   }
+
+  // Finishing the exam is the only way out, so End Exam appears
+  // on the result screen and nowhere earlier.
+  endExamButton.hidden = name !== "result";
 }
 
 const healthElements = {
@@ -258,7 +262,7 @@ function showDetailsError(message) {
   detailsError.hidden = false;
 }
 
-detailsForm.addEventListener("submit", (event) => {
+detailsForm.addEventListener("submit", async (event) => {
   event.preventDefault();
 
   const name = candidateName.value.trim();
@@ -277,6 +281,19 @@ detailsForm.addEventListener("submit", (event) => {
   }
 
   detailsError.hidden = true;
+  startTestButton.disabled = true;
+  startTestButton.textContent = "Starting...";
+
+  const result = await window.proctor.startExam({ name, urn });
+
+  startTestButton.disabled = false;
+  startTestButton.textContent = "Start Test";
+
+  if (!result.success) {
+    showDetailsError(result.message);
+    return;
+  }
+
   instructionsOverlay.hidden = false;
 });
 
@@ -304,7 +321,6 @@ enterFullscreenButton.addEventListener("click", async () => {
     if (!result.success) throw new Error("Full screen was not enabled.");
 
     fullscreenOverlay.hidden = true;
-    endExamButton.hidden = false;
     showScreen("proctoring");
   } catch (error) {
     fullscreenError.textContent = `Could not enter full screen: ${error.message}`;
