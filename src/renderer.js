@@ -5,6 +5,19 @@ const stopButton = document.getElementById("stop-camera");
 
 let cameraStream = null;
 
+const screens = {
+  details: document.getElementById("screen-details"),
+  proctoring: document.getElementById("screen-proctoring"),
+  exam: document.getElementById("screen-exam"),
+  result: document.getElementById("screen-result"),
+};
+
+function showScreen(name) {
+  for (const [screenName, element] of Object.entries(screens)) {
+    element.hidden = screenName !== name;
+  }
+}
+
 const healthElements = {
   camera: document.getElementById("health-camera"),
   microphone: document.getElementById("health-microphone"),
@@ -227,6 +240,56 @@ const agreeButton = document.getElementById("agree-instructions");
 const enterFullscreenButton = document.getElementById("enter-fullscreen");
 const endExamButton = document.getElementById("end-exam");
 
+const detailsForm = document.getElementById("details-form");
+const candidateName = document.getElementById("candidate-name");
+const candidateUrn = document.getElementById("candidate-urn");
+const detailsError = document.getElementById("details-error");
+const startTestButton = document.getElementById("start-test");
+
+const nextToExamButton = document.getElementById("next-to-exam");
+const submitExamButton = document.getElementById("submit-exam");
+
+// Mirrors the rule the backend enforces, so the candidate is told
+// before the request is made.
+const URN_PATTERN = /^[A-Za-z0-9/-]{3,40}$/;
+
+function showDetailsError(message) {
+  detailsError.textContent = message;
+  detailsError.hidden = false;
+}
+
+detailsForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+
+  const name = candidateName.value.trim();
+  const urn = candidateUrn.value.trim();
+
+  if (!name) {
+    showDetailsError("Enter your full name.");
+    return;
+  }
+
+  if (!URN_PATTERN.test(urn)) {
+    showDetailsError(
+      "Enter a valid URN: 3 to 40 letters, digits, hyphens or slashes."
+    );
+    return;
+  }
+
+  detailsError.hidden = true;
+  instructionsOverlay.hidden = false;
+});
+
+startTestButton.disabled = false;
+
+nextToExamButton.addEventListener("click", () => {
+  showScreen("exam");
+});
+
+submitExamButton.addEventListener("click", () => {
+  showScreen("result");
+});
+
 agreeButton.addEventListener("click", () => {
   instructionsOverlay.hidden = true;
   fullscreenOverlay.hidden = false;
@@ -242,6 +305,7 @@ enterFullscreenButton.addEventListener("click", async () => {
 
     fullscreenOverlay.hidden = true;
     endExamButton.hidden = false;
+    showScreen("proctoring");
   } catch (error) {
     fullscreenError.textContent = `Could not enter full screen: ${error.message}`;
     fullscreenError.hidden = false;

@@ -17,7 +17,7 @@
   </header>
 
 
-  <div id="instructions-overlay" class="overlay">
+  <div id="instructions-overlay" class="overlay" hidden>
     <div class="overlay-card" role="dialog" aria-modal="true" aria-labelledby="instructions-title">
       <h2 id="instructions-title">Exam Instructions</h2>
       <ul>
@@ -47,6 +47,29 @@
   </div>
 
   <main>
+
+    <div id="screen-details" class="screen screen-narrow">
+      <section>
+        <h2>Candidate Details</h2>
+        <p>Enter your details to begin the exam.</p>
+
+        <form id="details-form" novalidate>
+          <label for="candidate-name">Full name</label>
+          <input id="candidate-name" type="text" maxlength="80" autocomplete="off" />
+
+          <label for="candidate-urn">URN</label>
+          <input id="candidate-urn" type="text" maxlength="40" autocomplete="off" />
+
+          <p id="details-error" class="form-error" hidden></p>
+
+          <!-- Enabled by renderer.js. Submitting before the handler is
+               attached would reload the page. -->
+          <button type="submit" id="start-test" disabled>Start Test</button>
+        </form>
+      </section>
+    </div>
+
+    <div id="screen-proctoring" class="screen" hidden>
 
     <section>
       <h2>System Health</h2>
@@ -110,7 +133,26 @@
       <button id="stop-monitoring" disabled>Stop Monitoring</button>
     </section>
 
+      <div class="screen-actions">
+        <button id="next-to-exam">Next</button>
+      </div>
+    </div>
 
+    <div id="screen-exam" class="screen screen-narrow" hidden>
+      <section>
+        <h2>Exam</h2>
+        <p>Questions are loaded here in a later step.</p>
+
+        <button id="submit-exam">Submit Test</button>
+      </section>
+    </div>
+
+    <div id="screen-result" class="screen screen-narrow" hidden>
+      <section>
+        <h2>Result</h2>
+        <p id="result-summary">Your result appears here.</p>
+      </section>
+    </div>
 
   </main>
 

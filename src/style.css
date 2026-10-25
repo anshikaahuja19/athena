@@ -41,10 +41,26 @@ header h1 {
   letter-spacing: 0.3px;
 }
 
-main {
+.screen {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 20px;
+}
+
+.screen[hidden] {
+  display: none;
+}
+
+/* Screens holding a single card read better centred and narrow. */
+.screen-narrow {
+  grid-template-columns: minmax(0, 560px);
+  justify-content: center;
+}
+
+.screen-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
 }
 
 section {
@@ -211,7 +227,7 @@ button:disabled {
 }
 
 @media (max-width: 750px) {
-  main {
+  .screen {
     grid-template-columns: 1fr;
   }
 }
@@ -260,6 +276,39 @@ button:disabled {
 .health-indicator.error {
   background: var(--danger-soft);
   color: var(--danger);
+}
+
+label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+input[type="text"] {
+  display: block;
+  width: 100%;
+  margin-bottom: 18px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--white);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+}
+
+input[type="text"]:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.form-error {
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: 14px;
 }
 
 #health-summary {
