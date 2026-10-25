@@ -327,6 +327,35 @@ ipcMain.handle("exam:start", async (event, details) => {
   }
 });
 
+ipcMain.handle("exam:violation", async (event, violation) => {
+  if (!mainWindow || event.sender !== mainWindow.webContents) {
+    return { success: false, message: "Unauthorized request" };
+  }
+
+  if (!examSession) {
+    return { success: false, message: "No active exam session" };
+  }
+
+  const body = violation ?? {};
+
+  try {
+    const result = await backendRequest("/exam/violation", {
+      method: "POST",
+      body: JSON.stringify({
+        sessionId: examSession.sessionId,
+        type: body.type,
+        detail: body.detail,
+      }),
+    });
+
+    return { success: true, violations: result.violations };
+  } catch (error) {
+    // A lost violation must never interrupt the exam.
+    console.error("Could not record violation:", error.message);
+    return { success: false, message: error.message };
+  }
+});
+
 ipcMain.handle("exam:lock", () => {
   lockExam();
   return { success: examLocked };

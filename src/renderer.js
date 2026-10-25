@@ -12,7 +12,16 @@ const screens = {
   result: document.getElementById("screen-result"),
 };
 
+const endExamButton = document.getElementById("end-exam");
+const nextToExamButton = document.getElementById("next-to-exam");
+const submitExamButton = document.getElementById("submit-exam");
+const readinessHint = document.getElementById("readiness-hint");
+
+let currentScreen = "details";
+
 function showScreen(name) {
+  currentScreen = name;
+
   for (const [screenName, element] of Object.entries(screens)) {
     element.hidden = screenName !== name;
   }
@@ -49,6 +58,7 @@ function updateHealth(component, state, label) {
   element.textContent = label;
 
   updateHealthSummary();
+  updateReadiness();
 }
 
 function updateHealthSummary() {
@@ -68,6 +78,28 @@ function updateHealthSummary() {
 
   healthSummary.textContent =
     "System is running. Some components are inactive or awaiting checks.";
+}
+
+// Screen Capture is deliberately not required: it stays "Waiting" until
+// a violation triggers the first capture, so waiting on it would never
+// let anyone through.
+const REQUIRED_HEALTH = {
+  camera: "camera",
+  microphone: "microphone",
+  monitoring: "monitoring",
+  detection: "object detection",
+};
+
+function updateReadiness() {
+  const pending = Object.entries(REQUIRED_HEALTH)
+    .filter(([component]) => healthStates[component] !== "healthy")
+    .map(([, label]) => label);
+
+  nextToExamButton.disabled = pending.length > 0;
+
+  readinessHint.textContent = pending.length
+    ? `Waiting for: ${pending.join(", ")}`
+    : "Proctoring is ready.";
 }
 
 let objectDetectionModel = null;
@@ -242,16 +274,11 @@ const fullscreenOverlay = document.getElementById("fullscreen-overlay");
 const fullscreenError = document.getElementById("fullscreen-error");
 const agreeButton = document.getElementById("agree-instructions");
 const enterFullscreenButton = document.getElementById("enter-fullscreen");
-const endExamButton = document.getElementById("end-exam");
-
 const detailsForm = document.getElementById("details-form");
 const candidateName = document.getElementById("candidate-name");
 const candidateUrn = document.getElementById("candidate-urn");
 const detailsError = document.getElementById("details-error");
 const startTestButton = document.getElementById("start-test");
-
-const nextToExamButton = document.getElementById("next-to-exam");
-const submitExamButton = document.getElementById("submit-exam");
 
 // Mirrors the rule the backend enforces, so the candidate is told
 // before the request is made.
@@ -460,6 +487,13 @@ function showWarning(violation) {
     `Warning ${violationCounts[violation]}: ${warningMessages[violation]} ` +
     "Do not repeat this — it is recorded as a violation.";
   warningBanner.hidden = false;
+
+  // Every violation type reaches the examiner's record through here.
+  // Not awaited: a slow server must not hold up the warning.
+  window.proctor.reportViolation({
+    type: violation,
+    detail: `Seen on the ${currentScreen} screen`,
+  });
 }
 
 function hideWarning() {

@@ -10,6 +10,7 @@
   --warning: #c99a2e;
   --warning-soft: #f7ebcc;
   --text: #1a2230;
+  --muted: #566070;
   --border: #d4d9e2;
 }
 
@@ -60,7 +61,15 @@ header h1 {
 .screen-actions {
   grid-column: 1 / -1;
   display: flex;
+  align-items: center;
   justify-content: flex-end;
+  gap: 16px;
+}
+
+#readiness-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
 }
 
 section {
