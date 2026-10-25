@@ -13,6 +13,34 @@ const BACKEND_URL = process.env.ATHENA_BACKEND_URL || "http://localhost:6002";
 // so page code cannot post answers or results on its own.
 let examSession = null;
 
+const EVIDENCE_ROOT = "Athena Proctor Evidence";
+
+// Each candidate's evidence goes in its own folder, named so an
+// examiner can find it from the session record alone.
+function sessionEvidenceDir(session) {
+  const safeUrn = session.urn.replace(/[^A-Za-z0-9-]/g, "-");
+  const safeStart = session.startedAt.replace(/[:.]/g, "-");
+
+  return path.join(
+    app.getPath("documents"),
+    EVIDENCE_ROOT,
+    `${safeUrn}-${safeStart}`
+  );
+}
+
+// Returns null when there is no session, so evidence is never written
+// without a candidate attached to it.
+async function evidenceDirectory() {
+  if (!examSession) return null;
+
+  await fs.mkdir(examSession.evidenceDir, {
+    recursive: true,
+    mode: 0o700,
+  });
+
+  return examSession.evidenceDir;
+}
+
 async function backendRequest(pathname, options = {}) {
   let response;
 
@@ -74,15 +102,11 @@ ipcMain.handle("evidence:save-webcam", async (event, evidence) => {
   const safeTimestamp = timestamp.replace(/[:.]/g, "-");
   const safeReason = evidence.reason.replace(/[^a-z0-9-]/gi, "-");
 
-  const evidenceDir = path.join(
-    app.getPath("documents"),
-    "Athena Proctor Evidence"
-  );
+  const evidenceDir = await evidenceDirectory();
 
-  await fs.mkdir(evidenceDir, {
-    recursive: true,
-    mode: 0o700,
-  });
+  if (!evidenceDir) {
+    throw new Error("No active exam session");
+  }
 
   const fileName = `webcam-${safeTimestamp}-${safeReason}.jpg`;
   const filePath = path.join(evidenceDir, fileName);
@@ -154,15 +178,12 @@ async function captureScreenshot(reason) {
     const timestamp = new Date().toISOString();
     const safeTimestamp = timestamp.replace(/[:.]/g, "-");
 
-    const evidenceDir = path.join(
-      app.getPath("documents"),
-      "Athena Proctor Evidence"
-    );
+    const evidenceDir = await evidenceDirectory();
 
-    await fs.mkdir(evidenceDir, {
-      recursive: true,
-      mode: 0o700,
-    });
+    if (!evidenceDir) {
+      console.error("Screen capture skipped: no active exam session");
+      return;
+    }
 
     const safeReason = reason.replace(/[^a-z0-9-]/gi, "-");
 
@@ -319,7 +340,25 @@ ipcMain.handle("exam:start", async (event, details) => {
       sessionId: result.sessionId,
       name: result.name,
       urn: result.urn,
+      startedAt: result.startedAt,
     };
+
+    examSession.evidenceDir = sessionEvidenceDir(examSession);
+
+    // Drop a marker in the folder so an examiner can tell whose
+    // evidence it is without decoding the folder name. A disk problem
+    // here must not stop the candidate sitting the exam.
+    try {
+      const evidenceDir = await evidenceDirectory();
+
+      await fs.writeFile(
+        path.join(evidenceDir, "session.json"),
+        JSON.stringify(examSession, null, 2),
+        { mode: 0o600 }
+      );
+    } catch (error) {
+      console.error("Could not prepare evidence folder:", error.message);
+    }
 
     return { success: true, name: result.name, urn: result.urn };
   } catch (error) {
